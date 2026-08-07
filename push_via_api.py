@@ -66,10 +66,16 @@ def main():
         with open(p, "rb") as fh:
             raw = fh.read()
         payload = {
-            "message": f"add {f}",
+            "message": f"update {f}",
             "content": base64.b64encode(raw).decode(),
             "branch": branch,
         }
+        # 文件已存在时需要带 sha 才能更新；不存在(404)则创建
+        gst, gjs = call("GET", f"{base}/contents/{f}", auth=auth)
+        if gst == 200:
+            sha = json.loads(gjs).get("sha")
+            if sha:
+                payload["sha"] = sha
         st, js = call("PUT", f"{base}/contents/{f}", payload, auth)
         if st in (200, 201):
             ok += 1
