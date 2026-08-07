@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DTC Agent · AI 运营工作台</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --txt:#e8ecf2;
+    --mut:#8b93a3; --acc:#3da9fc; --acc2:#2ee6a6; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.6}
+  .wrap{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+  header h1{font-size:22px;margin:0 0 4px}
+  header p{color:var(--mut);margin:0 0 22px;font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+  select,textarea{width:100%;background:#0f1217;border:1px solid var(--line);
+    color:var(--txt);border-radius:8px;padding:10px;font-size:14px;font-family:inherit}
+  textarea{min-height:96px;resize:vertical}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>.card{flex:1;min-width:200px}
+  button{background:var(--acc);color:#04121f;border:0;border-radius:8px;
+    padding:12px 20px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .out{white-space:pre-wrap;font-size:14px;background:#0f1217;border:1px solid var(--line);
+    border-radius:8px;padding:14px;min-height:120px;color:var(--txt)}
+  .meta{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:8px}
+  .pill{display:inline-block;background:#11202c;color:var(--acc2);border:1px solid #1c3a2c;
+    border-radius:999px;padding:2px 10px;font-size:12px}
+  .err{color:var(--warn);font-size:13px;min-height:18px;margin-top:6px}
+  footer{color:var(--mut);font-size:12px;margin-top:24px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DTC Agent · AI 运营工作台</h1>
+    <p>一键生成跨境 DTC 卖家的 Listing、客服稿、代码审查与行业研究。成本约 ¥0.01/次。</p>
+  </header>
+
+  <div class="card">
+    <label>选择任务</label>
+    <select id="scenario"></select>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <label>市场</label>
+      <select id="market">
+        <option value="uk">UK（英国）</option>
+        <option value="eu">EU（欧洲）</option>
+        <option value="us">US（美国）</option>
+      </select>
+    </div>
+    <div class="card">
+      <label>商品 / 主题 brief</label>
+      <textarea id="brief" placeholder="例：Libertas Lab 男士3/2mm冲浪潜水连体胶衣, 再生尼龙, 适合UK寒冷海域"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <button id="go">生成</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card">
+    <label>输出 <span class="pill" id="tag">ready</span></label>
+    <div class="out" id="output">—</div>
+    <div class="meta">
+      <span id="cost">单次成本：—</span>
+      <span>月 1000 次 ≈ ¥6–10</span>
+    </div>
+  </div>
+
+  <footer>OPC · 单人来跑的 AI Agents 产品 · 成本纪律：仅 API，无服务器费用</footer>
+</div>
+
+<script>
+  const SCENARIOS = {{ scenarios | tojson }};
+  const sel = document.getElementById('scenario');
+  for (const [k,v] of Object.entries(SCENARIOS)) {
+    const o = document.createElement('option'); o.value = k; o.textContent = v; sel.appendChild(o);
+  }
+  const btn = document.getElementById('go');
+  const out = document.getElementById('output');
+  const err = document.getElementById('err');
+  const cost = document.getElementById('cost');
+  const tag = document.getElementById('tag');
+
+  btn.onclick = async () => {
+    err.textContent = '';
+    const brief = document.getElementById('brief').value.trim();
+    if (!brief) { err.textContent = '请先填写 brief'; return; }
+    btn.disabled = true; tag.textContent = '生成中…'; out.textContent = '思考中…';
+    try {
+      const r = await fetch('/api/generate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({scenario:sel.value, brief, market:document.getElementById('market').value})
+      });
+      const d = await r.json();
+      if (!r.ok) { err.textContent = d.error || '出错了'; out.textContent='—'; tag.textContent='error'; }
+      else { out.textContent = d.output; cost.textContent = `单次成本：¥${d.cost_cny}（$${d.cost_usd}）`; tag.textContent='done'; }
+    } catch(e) { err.textContent = '网络错误：' + e.message; tag.textContent='error'; }
+    finally { btn.disabled = false; }
+  };
+</script>
+</body>
+</html>
