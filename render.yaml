@@ -14,5 +14,3 @@ services:
         value: deepseek-chat
       - key: OPENAI_API_KEY      # 在 Render 后台 Secrets 里填，不要写进仓库
         sync: false
-      - key: PORT
-        sync: false
