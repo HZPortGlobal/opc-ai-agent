@@ -1,59 +1,59 @@
-# 部署到公开 URL（2 分钟上线）
+# 上线 Render（有代理时 · 2 分钟）
 
-两种免费路径，任选其一。**密钥只在平台 Secrets 里填，不要提交进仓库。**
-
----
-
-## 路径 A：Hugging Face Spaces（推荐，免信用卡）
-
-1. 登录 https://huggingface.co （用 GitHub 账号即可）
-2. 右上角 **New** → **Space** → 填名字（如 `opc-ai-agent`），**SDK 选 Docker**，
-   Visibility 选 **Public**
-3. 创建后进入 Space，左侧 **Settings → Secrets** 添加：
-   - `OPENAI_API_KEY` = 你的 DeepSeek key（sk-...）
-   - `OPENAI_BASE_URL` = `https://api.deepseek.com/v1`
-   - `OPENAI_MODEL` = `deepseek-chat`
-4. 把本仓库文件上传（拖拽即可，包含 Dockerfile + README 的 Space 配置头）：
-   - `app.py` / `src/agent_core.py` / `templates/index.html` / `requirements.txt` / `Dockerfile`
-   - 仓库根 `README.md` 必须带 Space 配置头（已在仓库内，照抄即可）
-5. 等待 build 完成，Space 给你的 `*.hf.space` 就是公开 URL，可直接发给用户收钱。
-
-> Space 配置头（README.md 顶部）：
-> ```yaml
-> ---
-> title: OPC AI Agent
-> emoji: 🤖
-> colorFrom: blue
-> colorTo: indigo
-> sdk: docker
-> app_port: 7860
-> ---
-> ```
+代码已在 GitHub：`https://github.com/HZPortGlobal/opc-ai-agent`
+本机有代理即可走通 GitHub 登录（OAuth 跳转不再被墙）。
 
 ---
 
-## 路径 B：Render（标准 Web 服务）
+## 第 0 步：重发 DeepSeek key（上线前必做）
 
-1. 登录 https://render.com → **New** → **Web Service** → 连 GitHub 仓库
-   （先把本仓库推到你的 GitHub：`git push`）
-2. 配置：
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `python app.py`
-   - 选 **Free** 计划
-3. **Environment** 里加变量：
-   - `OPENAI_BASE_URL` = `https://api.deepseek.com/v1`
-   - `OPENAI_MODEL` = `deepseek-chat`
-   - `OPENAI_API_KEY` = 你的 key（点 "Secret" 隐藏）
-4. Deploy 完成后拿到 `*.onrender.com` 公开 URL。
+聊天里贴过的两个 `sk-...` 已暴露。先去 https://platform.deepseek.com → API keys →
+**删掉旧的，新建一个**，复制新 `sk-...`。下面只在 Render 里填这个新的。
+
+## 第 1 步：开代理 + 打开 render.com
+
+确认浏览器走了代理（能正常打开 https://render.com 且不被重置）。
+
+## 第 2 步：用 GitHub 登录 Render
+
+- 点 **Sign Up** / **Log In** → **Continue with GitHub**
+- 跳到 GitHub 授权页 → 点 **Authorize render**（允许它读你的仓库）
+- 如果列表里看不到 `opc-ai-agent`，点 **Configure** / **Authorize** 把仓库权限放开
+
+## 第 3 步：新建 Web Service
+
+- 登录后右上 **New** → **Web Service**
+- **Connect a repository** → 选 GitHub → 找到 `HZPortGlobal/opc-ai-agent` → **Connect**
+
+## 第 4 步：配置（基本不用改）
+
+- Name：`opc-ai-agent`
+- Region：**Singapore**（离 UK 近，海外用户访问快）或 Oregon
+- Branch：`master`
+- Runtime：**Docker**（会自动读仓库里的 `Dockerfile`，无需填 Build/Start 命令）
+
+## 第 5 步：填环境变量（关键）
+
+展开 **Advanced → Environment Variables**，加一条：
+- 名称：`OPENAI_API_KEY`
+- 值：你**新重发的** DeepSeek key（`sk-...`）
+- 右侧点 **Secret** 隐藏
+
+> `OPENAI_BASE_URL` / `OPENAI_MODEL` **不用填**——引擎 `src/agent_core.py` 已默认 DeepSeek。
+
+## 第 6 步：Deploy
+
+点 **Create Web Service**（或 **Deploy**）→ 等 1–2 分钟 build。
+状态变绿 **Live** 后，点生成的 `https://opc-ai-agent.onrender.com` 即可访问。
 
 ---
 
-## 上线后第一件事（获取真实付费信号）
+## 上线后须知
 
-按张一鸣打法：产品能跑不等于有人付钱。上线当天就做：
-1. 找 1–2 个 UK 小卖家 / 独立开发者 **免费试用一周**，看是否愿意付月费
-2. 把试用反馈当成第 3 周「数据筛方向」的输入，不过线场景零情感砍掉
-3. 跑通的场景锁死成可订阅产品形态，才是那一百万的前提（不是接定制外包）
+- **免费层冷启动**：首次/闲置后访问会慢几秒~十几秒（免费层 15 分钟无访问会休眠，下次唤醒），
+  属正常，不是挂了。
+- **海外访问反而快**：Render 服务器在境外，UK 卖家打开比国内云还顺畅——这是用 Render 的最大好处。
+- **真实付费信号**（第 1 周必做）：找 1–2 个 UK 小卖家免费试用一周，
+  看是否愿为「自动出 listing + 接客服」付月费；不过线场景零情感砍掉。
 
-> ⚠️ 安全：聊天里贴过的 DeepSeek key 已视为暴露，正式上线前请去
-> platform.deepseek.com 吊销并重发一个，只放进平台 Secrets。
+> ⚠️ 安全：密钥只放 Render 的 Environment（Secret），不要提交进仓库（`.env` 已被 gitignore）。
