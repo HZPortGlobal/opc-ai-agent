@@ -39,7 +39,7 @@
 <div class="wrap">
   <header>
     <h1>DTC Agent · AI 运营工作台</h1>
-    <p>一键生成跨境 DTC 卖家的 Listing、客服稿、代码审查与行业研究。成本约 ¥0.01/次。</p>
+    <p>一键生成跨境 DTC 卖家的 Listing、客服稿、代码审查与行业研究。</p>
   </header>
 
   <div class="card">
@@ -58,7 +58,7 @@
     </div>
     <div class="card">
       <label>商品 / 主题 brief</label>
-      <textarea id="brief" placeholder="例：Libertas Lab 男士3/2mm冲浪潜水连体胶衣, 再生尼龙, 适合UK寒冷海域"></textarea>
+      <textarea id="brief" placeholder="例：男士 3/2mm 冲浪潜水连体胶衣，再生尼龙，适合 UK 寒冷海域"></textarea>
     </div>
   </div>
 
@@ -70,13 +70,10 @@
   <div class="card">
     <label>输出 <span class="pill" id="tag">ready</span></label>
     <div class="out" id="output">—</div>
-    <div class="meta">
-      <span id="cost">单次成本：—</span>
-      <span>月 1000 次 ≈ ¥6–10</span>
-    </div>
+    <p class="meta">生成结果由 AI 实时产出，复制即可使用。</p>
   </div>
 
-  <footer>OPC · 单人来跑的 AI Agents 产品 · 成本纪律：仅 API，无服务器费用</footer>
+  <footer>DTC Agent · 为跨境 DTC 卖家提供 AI 内容生成</footer>
 </div>
 
 <script>
@@ -88,7 +85,6 @@
   const btn = document.getElementById('go');
   const out = document.getElementById('output');
   const err = document.getElementById('err');
-  const cost = document.getElementById('cost');
   const tag = document.getElementById('tag');
 
   btn.onclick = async () => {
@@ -103,7 +99,7 @@
       });
       const d = await r.json();
       if (!r.ok) { err.textContent = d.error || '出错了'; out.textContent='—'; tag.textContent='error'; }
-      else { out.textContent = d.output; cost.textContent = `单次成本：¥${d.cost_cny}（$${d.cost_usd}）`; tag.textContent='done'; }
+      else { out.textContent = d.output; tag.textContent='done'; }
     } catch(e) { err.textContent = '网络错误：' + e.message; tag.textContent='error'; }
     finally { btn.disabled = false; }
   };
