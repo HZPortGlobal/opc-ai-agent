@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DTC Agent · AI 运营工作台</title>
+<title>AI 上架合规官 · 英国户外卖家运营工具</title>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --line:#262b36; --txt:#e8ecf2;
@@ -19,7 +19,7 @@
   label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
   select,textarea,input{width:100%;background:#0f1217;border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:10px;font-size:14px;font-family:inherit}
-  textarea{min-height:96px;resize:vertical}
+  textarea{min-height:120px;resize:vertical}
   .row{display:flex;gap:12px;flex-wrap:wrap}
   .row>.card{flex:1;min-width:200px}
   button{background:var(--acc);color:#04121f;border:0;border-radius:8px;
@@ -37,17 +37,18 @@
   .fb-btns{display:flex;gap:10px}
   .fb-btns button{flex:1}
   .hidden{display:none}
+  .hero{background:linear-gradient(135deg,#11202c,#171a21);border:1px solid #1c3a2c}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>DTC Agent · AI 运营工作台</h1>
-    <p>一键生成跨境 DTC 卖家的 Listing、客服稿、代码审查与行业研究。</p>
+    <h1>AI 上架合规官</h1>
+    <p>专为做英国/欧洲市场的中国出海卖家打造 —— 生成即合规，规避 GPSR 下架与绝对化宣称风险。</p>
   </header>
 
-  <div class="card">
-    <label>选择任务</label>
+  <div class="card hero">
+    <label>选择任务（主推「上架合规体检」）</label>
     <select id="scenario"></select>
   </div>
 
@@ -62,7 +63,7 @@
     </div>
     <div class="card">
       <label>商品 / 主题 brief</label>
-      <textarea id="brief" placeholder="例：男士 3/2mm 冲浪潜水连体胶衣，再生尼龙，适合 UK 寒冷海域"></textarea>
+      <textarea id="brief" placeholder="把现成的 Listing（标题+卖点+描述）粘进来，我做合规体检"></textarea>
     </div>
   </div>
 
@@ -85,22 +86,44 @@
       <button id="down">👎 没用</button>
     </div>
     <label style="margin-top:10px">一句话：哪里好 / 哪里差（可选）</label>
-    <textarea id="fbcomment" placeholder="比如：卖点太泛、想要更具体的材质参数"></textarea>
+    <textarea id="fbcomment" placeholder="比如：合规点抓得准、想要更具体的材质参数"></textarea>
     <label style="margin-top:10px">如果每周帮你省 2 小时，你愿付 £ 多少/月？</label>
     <input id="wtp" type="number" min="0" placeholder="如 20" />
     <div class="err" id="fberr"></div>
     <p class="meta" id="fbdone" style="display:none;color:var(--acc2)">已记录，谢谢！</p>
   </div>
 
-  <footer>DTC Agent · 为跨境 DTC 卖家提供 AI 内容生成</footer>
+  <div class="card">
+    <a href="/waitlist" style="color:var(--acc);font-size:13px">→ 加入内测，第一时间用上合规官</a>
+  </div>
+
+  <footer>AI 上架合规官 · 为做英国/欧洲市场的出海卖家提供内容生成与合规体检</footer>
 </div>
 
 <script>
+  // 匿名 uid：用于统计独立用户与基础留存（仅随机串，不关联任何个人信息）
+  function getUid(){
+    let u = localStorage.getItem('uid');
+    if(!u){ u = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+''+Math.random()); localStorage.setItem('uid',u); }
+    return u;
+  }
+  const UID = getUid();
+
   const SCENARIOS = {{ scenarios | tojson }};
+  const PLACEHOLDERS = {
+    "A_audit": "把现成的 Listing（标题+卖点+描述）粘进来，我做合规体检",
+    "A_listing": "例：男士 3/2mm 冲浪潜水连体胶衣，再生尼龙，适合 UK 寒冷海域",
+    "A_cs": "粘贴客户消息，例如：客户要求退一件有轻微破口的胶衣",
+    "C_research": "例：2026 英国户外水上运动 DTC 市场趋势"
+  };
   const sel = document.getElementById('scenario');
   for (const [k,v] of Object.entries(SCENARIOS)) {
     const o = document.createElement('option'); o.value = k; o.textContent = v; sel.appendChild(o);
   }
+  const brief = document.getElementById('brief');
+  function syncPlaceholder(){ brief.placeholder = PLACEHOLDERS[sel.value] || "输入内容"; }
+  sel.onchange = syncPlaceholder; syncPlaceholder();
+
   const btn = document.getElementById('go');
   const out = document.getElementById('output');
   const err = document.getElementById('err');
@@ -110,8 +133,8 @@
 
   btn.onclick = async () => {
     err.textContent = '';
-    const brief = document.getElementById('brief').value.trim();
-    if (!brief) { err.textContent = '请先填写 brief'; return; }
+    const b = brief.value.trim();
+    if (!b) { err.textContent = '请先填写内容'; return; }
     const scenario = sel.value;
     const market = document.getElementById('market').value;
     lastMeta = {scenario, market};
@@ -120,7 +143,7 @@
     try {
       const r = await fetch('/api/generate', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({scenario, brief, market})
+        body: JSON.stringify({scenario, brief:b, market, uid:UID})
       });
       const d = await r.json();
       if (!r.ok) { err.textContent = d.error || '出错了'; out.textContent='—'; tag.textContent='error'; }
