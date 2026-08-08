@@ -47,6 +47,45 @@ def init():
             created_at REAL
         )"""
     )
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS free_checks(
+            ip TEXT,
+            day TEXT,
+            count INTEGER DEFAULT 0,
+            PRIMARY KEY(ip, day)
+        )"""
+    )
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS redeem_codes(
+            code TEXT PRIMARY KEY,
+            plan TEXT DEFAULT 'pro',
+            credits INTEGER DEFAULT 9999,
+            created_at REAL,
+            redeemed_at REAL,
+            redeemed_by TEXT
+        )"""
+    )
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS members(
+            code TEXT PRIMARY KEY,
+            plan TEXT,
+            credits INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            created_at REAL,
+            activated_at REAL
+        )"""
+    )
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS payments(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel TEXT,
+            amount_cny REAL,
+            status TEXT,
+            code TEXT,
+            meta TEXT,
+            created_at REAL
+        )"""
+    )
     conn.commit()
     conn.close()
 
@@ -89,7 +128,107 @@ def log_usage(scenario, market, ok, uid=""):
     conn.close()
 
 
+def get_free_count(ip, day):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT count FROM free_checks WHERE ip=? AND day=?", (ip, day))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else 0
+
+
+def inc_free_count(ip, day):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO free_checks(ip,day,count) VALUES(?,?,1) "
+        "ON CONFLICT(ip,day) DO UPDATE SET count=count+1",
+        (ip, day),
+    )
+    conn.commit()
+    conn.close()
+
+
+def create_redeem_code(code, plan="pro", credits=9999):
+    """预先生成会员码（可批量发售；商户号就绪后由支付回调自动 mint）。"""
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR IGNORE INTO redeem_codes(code,plan,credits,created_at) VALUES(?,?,?,?)",
+        (code, plan, credits, time.time()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def redeem_code(code, uid=""):
+    """核销会员码 → 激活 members 记录。返回 {plan,credits} 或 None（无效/已用）。"""
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT code,plan,credits FROM redeem_codes WHERE code=?", (code,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None
+    c.execute(
+        "INSERT OR REPLACE INTO members(code,plan,credits,status,created_at,activated_at) "
+        "VALUES(?,?,?,?,?,?)",
+        (row[0], row[1], row[2], "active", time.time(), time.time()),
+    )
+    c.execute(
+        "UPDATE redeem_codes SET redeemed_at=?, redeemed_by=? WHERE code=?",
+        (time.time(), uid, code),
+    )
+    conn.commit()
+    conn.close()
+    return {"plan": row[1], "credits": row[2]}
+
+
+def is_member(code):
+    if not code:
+        return False
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT status FROM members WHERE code=?", (code,))
+    row = c.fetchone()
+    conn.close()
+    return bool(row and row[0] == "active")
+
+
+def get_member(code):
+    if not code:
+        return None
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT code,plan,credits,status FROM members WHERE code=?", (code,))
+    row = c.fetchone()
+    conn.close()
+    return {"code": row[0], "plan": row[1], "credits": row[2], "status": row[3]} if row else None
+
+
+def log_payment(channel, amount_cny, status, code="", meta=""):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO payments(channel,amount_cny,status,code,meta,created_at) VALUES(?,?,?,?,?,?)",
+        (channel, amount_cny, status, code, meta, time.time()),
+    )
+    conn.commit()
+    conn.close()
+
+
 def stats():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    now = time.time()
+    week_ago = now - 7 * 86400
+
+    c.execute("SELECT COUNT(*) FROM waitlist")
+    wl = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM feedback")
+    fb = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM members WHERE status='active'")
+    members = c.fetchone()[0]
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     now = time.time()
@@ -121,6 +260,7 @@ def stats():
     return {
         "waitlist": wl,
         "feedback": fb,
+        "members": members,
         "by_scenario": by_s,
         "gen_total": total,
         "success_rate": success_rate,
