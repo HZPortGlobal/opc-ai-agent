@@ -58,6 +58,8 @@ def main():
     branch = json.loads(js).get("default_branch", "main")
     print(f"目标分支: {branch}")
 
+    # 先把所有改动/新文件暂存，否则 git ls-files 看不到未跟踪的新文件
+    subprocess.run(["git", "add", "-A"], cwd=repo_dir(), check=False)
     files = tracked_files()
     print(f"待推送文件: {len(files)} 个")
     ok = 0
