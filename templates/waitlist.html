@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Join the waitlist · AI for UK outdoor DTC sellers</title>
+<title>内测招募 · 做英国市场的出海卖家 AI 运营工具</title>
 <style>
   :root{--bg:#0f1115;--panel:#171a21;--line:#262b36;--txt:#e8ecf2;--mut:#8b93a3;--acc:#3da9fc;--acc2:#2ee6a6}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);
     display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px;line-height:1.6}
   .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px;max-width:520px;width:100%}
   h1{font-size:24px;margin:0 0 8px}
@@ -25,35 +25,35 @@
 </head>
 <body>
 <div class="box">
-  <h1>AI content tools for UK outdoor & watersports sellers</h1>
-  <p class="lead">Built for small DTC brands shipping to the UK — wetsuits, dive gear, surf & outdoor kit.</p>
+  <h1>做英国市场的出海卖家，AI 运营工具内测招募</h1>
+  <p class="lead">专为运动户外 / 冲浪 / 潜水品类的出海卖家打造，自动搞定英国市场的 Listing 与客服。</p>
   <ul>
-    <li>Generate UK-market listings, bullet points & descriptions in seconds</li>
-    <li>Draft polite, on-policy customer replies (multilingual)</li>
-    <li>Always UK/EU compliant: real materials, no overclaims</li>
+    <li>几秒生成符合英国市场的 Listing、卖点、产品描述</li>
+    <li>自动起草礼貌合规的客服回复（支持多语言）</li>
+    <li>内置 UK/EU 合规：材质真实、不夸大宣称</li>
   </ul>
-  <input id="email" type="email" placeholder="you@yourbrand.co.uk" />
-  <button id="join">Join the waitlist</button>
+  <input id="email" type="email" placeholder="你的邮箱" />
+  <button id="join">加入内测</button>
   <div class="msg" id="msg"></div>
-  <footer>Free trial for early members · No spam</footer>
+  <footer>内测名额有限，上线后优先通知你</footer>
 </div>
 <script>
   const btn = document.getElementById('join');
   const msg = document.getElementById('msg');
   btn.onclick = async () => {
     const email = document.getElementById('email').value.trim();
-    if (!email) { msg.className='msg err'; msg.textContent='Enter your email'; return; }
-    btn.disabled = true; msg.textContent='…';
+    if (!email) { msg.className='msg err'; msg.textContent='请填写邮箱'; return; }
+    btn.disabled = true; msg.textContent='提交中…';
     try {
       const r = await fetch('/api/waitlist', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({email, source:'waitlist_page'})
       });
       const d = await r.json();
-      if (!r.ok) { msg.className='msg err'; msg.textContent = d.error || 'Failed'; }
-      else if (d.added) { msg.className='msg ok'; msg.textContent='You are on the list. We will be in touch.'; document.getElementById('email').value=''; }
-      else { msg.className='msg ok'; msg.textContent='You were already on the list.'; }
-    } catch(e) { msg.className='msg err'; msg.textContent='Network error: '+e.message; }
+      if (!r.ok) { msg.className='msg err'; msg.textContent = d.error || '提交失败'; }
+      else if (d.added) { msg.className='msg ok'; msg.textContent='已加入，上线后第一时间通知你'; document.getElementById('email').value=''; }
+      else { msg.className='msg ok'; msg.textContent='你已经在内测名单里了'; }
+    } catch(e) { msg.className='msg err'; msg.textContent='网络错误：'+e.message; }
     finally { btn.disabled = false; }
   };
 </script>
