@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>英国站/欧盟 GPSR 合规体检工具 | 免费自查 Listing 下架风险</title>
+<meta name="description" content="面向做英国/欧洲市场的中国出海卖家，免费做 Listing 合规体检：一键扫描 GPSR、CE/PPE、绝对化宣称、英美用语差异等下架风险。做亚马逊英国站、欧盟站必备自查工具。" />
+<meta name="keywords" content="英国站合规,欧盟GPSR,亚马逊英国站合规,GPSR合规体检,Listing合规自查,跨境合规,上架合规,UK上架合规,欧盟产品安全条例" />
+<meta property="og:title" content="英国站/欧盟 GPSR 合规体检工具（免费）" />
+<meta property="og:description" content="中国出海卖家做英国/欧洲站，免费体检 Listing 下架风险：GPSR、CE/PPE、绝对化宣称、英美用语。" />
+<meta property="og:type" content="website" />
+<link rel="canonical" href="https://your-domain.example/landing" />
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --txt:#e8ecf2;
+    --mut:#8b93a3; --acc:#3da9fc; --acc2:#2ee6a6; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.7}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 60px}
+  header h1{font-size:26px;margin:0 0 6px;line-height:1.3}
+  header p.sub{color:var(--mut);margin:0 0 24px;font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .hero{background:linear-gradient(135deg,#11202c,#171a21);border:1px solid #1c3a2c}
+  label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+  select,textarea{width:100%;background:#0f1217;border:1px solid var(--line);
+    color:var(--txt);border-radius:8px;padding:10px;font-size:14px;font-family:inherit}
+  textarea{min-height:140px;resize:vertical}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>.col{flex:1;min-width:160px}
+  button{background:var(--acc);color:#04121f;border:0;border-radius:8px;
+    padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .out{white-space:pre-wrap;font-size:14px;background:#0f1217;border:1px solid var(--line);
+    border-radius:8px;padding:14px;min-height:120px;color:var(--txt)}
+  .meta{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:8px}
+  .pill{display:inline-block;background:#11202c;color:var(--acc2);border:1px solid #1c3a2c;
+    border-radius:999px;padding:2px 10px;font-size:12px}
+  .err{color:var(--warn);font-size:13px;min-height:18px;margin-top:6px}
+  .hidden{display:none}
+  h2{font-size:18px;margin:28px 0 10px;border-left:3px solid var(--acc);padding-left:10px}
+  .faq q{font-weight:600;color:var(--txt)}
+  .faq p{color:var(--mut);margin:4px 0 14px}
+  footer{color:var(--mut);font-size:12px;margin-top:28px;text-align:center}
+  .pay{border-color:#3a2c11;background:#1c160a}
+  .pay a{color:var(--acc);font-weight:600}
+  a.inline{color:var(--acc);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>英国站 / 欧盟 GPSR 合规体检工具（免费）</h1>
+    <p class="sub">做亚马逊英国站、欧盟站的中国出海卖家，一键体检 Listing 下架风险。粘贴现成 Listing，AI 立刻标出 GPSR、CE/PPE、绝对化宣称、英美用语等隐患。</p>
+  </header>
+
+  <div class="card hero">
+    <label>① 选择市场</label>
+    <div class="row">
+      <div class="col">
+        <select id="market">
+          <option value="uk">UK（英国站）</option>
+          <option value="eu">EU（欧盟站）</option>
+        </select>
+      </div>
+    </div>
+    <label style="margin-top:12px">② 粘贴要体检的 Listing（标题 + 卖点 + 描述）</label>
+    <textarea id="brief" placeholder="例：Men's 3/2mm wetsuit, best thermal protection, 100% safe, unbreakable zipper, color black..."></textarea>
+    <div style="margin-top:12px">
+      <button id="go">免费体检</button>
+      <span class="pill" id="quota" style="margin-left:10px">今日免费次数：—</span>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card">
+    <label>体检报告 <span class="pill" id="tag">ready</span></label>
+    <div class="out" id="output">—</div>
+    <p class="meta">结果由 AI 实时生成，仅供参考，正式上架请以平台与官方要求为准。</p>
+  </div>
+
+  <div class="card pay hidden" id="pay">
+    <label>今日免费次数已用完</label>
+    <p style="font-size:14px;color:var(--txt);margin:6px 0 10px">
+      免费体检限 <b id="limit">3</b> 次/天/人。开通会员可无限体检 + 生成即合规的 Listing + 多语言客服草稿。
+    </p>
+    <button id="toMember">开通会员 / 输入体验码</button>
+  </div>
+
+  <div class="card pay" id="member">
+    <label>开通会员 · 无限合规体检</label>
+    <p style="font-size:13px;color:var(--mut);margin:0 0 12px">
+      会员价 <b style="color:var(--txt)">¥199/月</b>：无限次 Listing 合规体检 + 生成即合规的 Listing + 多语言客服草稿。
+      <span class="pill" id="mstatus">未激活</span>
+    </p>
+    <div class="row">
+      <div class="col">
+        <label>① 已有会员码 / 体验码</label>
+        <input id="mcode" placeholder="粘贴会员码，例如 PRO-XXXX-XXXX" style="width:100%;background:#0f1217;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:14px;font-family:inherit" />
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button id="activate">激活会员码</button>
+      <span class="err" id="merr" style="margin-left:10px"></span>
+    </div>
+    <div style="margin:16px 0 6px;border-top:1px solid var(--line);padding-top:14px">
+      <label>② 微信 / 支付宝 开通（自动发货会员码）</label>
+      <div class="row" style="margin-top:8px">
+        <div class="col"><button id="payWechat" style="width:100%;background:var(--acc2);color:#04121f">微信支付 ¥199</button></div>
+        <div class="col"><button id="payAlipay" style="width:100%;background:var(--warn);color:#1a1205">支付宝 ¥199</button></div>
+      </div>
+      <p class="err" id="perr" style="margin-top:10px"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <a class="inline" href="/">→ 打开完整工具台（生成 Listing / 客服 / 行业研究）</a>
+  </div>
+
+  <h2>什么是 GPSR 合规体检？</h2>
+  <p style="color:var(--mut)">
+    GPSR（General Product Safety Regulation，欧盟通用产品安全条例）自 2024 年底起逐步生效，要求面向欧盟消费者的商品具备欧盟责任人、警示标签、可追溯信息等。亚马逊英国站/欧盟站对 Listing 的合规审查越来越严，
+    一处绝对化宣称（如 "best" "100% safe" "unbreakable"）或缺失欧盟责任人信息，都可能触发下架或限制。
+    本工具帮你把已经写好的 Listing 先过一遍，标出高风险点并给改写建议，降低被下架的概率。
+  </p>
+
+  <h2>中小卖家最容易被罚 / 下架的 5 类问题</h2>
+  <p style="color:var(--mut)">
+    1）绝对化、夸大宣称（best / No.1 / 100% safe / unbreakable / 治愈）；<br>
+    2）涉及安全/防护类商品（头盔、护具、部分浮具）未标注 CE 与类别；<br>
+    3）运动户外品类缺欧盟责任人 / 警示标签提示；<br>
+    4）英美用语混用（color→colour, pants→trousers, sneakers→trainers, zipper→zip）；<br>
+    5）材质、厚度、适用水温等参数不清晰或与实物不符。
+  </p>
+
+  <h2>常见问题</h2>
+  <div class="faq">
+    <q>这个工具收费吗？</q>
+    <p>每日每 IP 可免费体检 3 次，超额后需开通会员。会员含无限体检、合规 Listing 生成、多语言客服草稿。</p>
+    <q>体检结果能保证不上架被拒吗？</q>
+    <p>不能。AI 仅做风险提醒，不构成法律或合规保证，正式上架请以平台与官方要求为准。</p>
+    <q>支持哪些市场？</q>
+    <p>当前支持英国站（UK）与欧盟站（EU），覆盖运动户外、冲浪、潜水、水上运动等品类。</p>
+  </div>
+
+  <footer>合规体检工具 · 为做英国/欧洲市场的中国出海卖家提供 Listing 合规自查</footer>
+</div>
+
+<script>
+  function getUid(){
+    let u = localStorage.getItem('uid');
+    if(!u){ u = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+''+Math.random()); localStorage.setItem('uid',u); }
+    return u;
+  }
+  const UID = getUid();
+  const btn = document.getElementById('go');
+  const out = document.getElementById('output');
+  const err = document.getElementById('err');
+  const tag = document.getElementById('tag');
+  const pay = document.getElementById('pay');
+  const quota = document.getElementById('quota');
+  const brief = document.getElementById('brief');
+  const LIMIT = 3;
+
+  // ---- 会员码状态 ----
+  let MEMBER_CODE = localStorage.getItem('member_code') || '';
+  const mstatus = document.getElementById('mstatus');
+  const merr = document.getElementById('merr');
+  function renderMember(){
+    if (MEMBER_CODE){ mstatus.textContent = '已激活 · 无限体检'; mstatus.style.color = 'var(--acc2)'; }
+    else { mstatus.textContent = '未激活'; mstatus.style.color = 'var(--mut)'; }
+  }
+  renderMember();
+
+  async function refreshQuota(){
+    try{
+      const r = await fetch('/api/quota', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid:UID})});
+      const d = await r.json();
+      if(typeof d.free_used === 'number'){
+        document.getElementById('limit').textContent = d.free_limit;
+        quota.textContent = MEMBER_CODE ? '会员：无限体检' : `今日免费次数：${d.free_used}/${d.free_limit}`;
+      }
+    }catch(e){}
+  }
+  refreshQuota();
+
+  // ---- 免费体检 ----
+  btn.onclick = async () => {
+    err.textContent = '';
+    const b = brief.value.trim();
+    if (!b) { err.textContent = '请先粘贴要体检的 Listing'; return; }
+    const market = document.getElementById('market').value;
+    btn.disabled = true; tag.textContent = '体检中…'; out.textContent = '分析中…';
+    pay.classList.add('hidden');
+    try {
+      const r = await fetch('/api/check', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({brief:b, market, uid:UID, member_code: MEMBER_CODE})
+      });
+      const d = await r.json();
+      if (r.status === 402 || d.paywall){
+        pay.classList.remove('hidden');
+        document.getElementById('member').scrollIntoView({behavior:'smooth'});
+        err.textContent = d.error || '今日免费次数已用完';
+        tag.textContent = 'limit';
+        if (typeof d.free_limit === 'number') document.getElementById('limit').textContent = d.free_limit;
+        return;
+      }
+      if (r.status === 503 || d.model_down){
+        err.textContent = d.error || '服务预热中，暂不能生成';
+        tag.textContent = 'down'; out.textContent = '—'; return;
+      }
+      if (!r.ok) { err.textContent = d.error || '出错了'; out.textContent='—'; tag.textContent='error'; return; }
+      out.textContent = d.output; tag.textContent='done';
+      if (typeof d.free_used === 'number') quota.textContent = d.member ? '会员：无限体检' : `今日免费次数：${d.free_used}/${d.free_limit}`;
+    } catch(e) { err.textContent = '网络错误：' + e.message; tag.textContent='error'; }
+    finally { btn.disabled = false; }
+  };
+
+  // ---- 激活会员码 ----
+  document.getElementById('activate').onclick = async () => {
+    merr.textContent = ''; merr.style.color = 'var(--warn)';
+    const code = document.getElementById('mcode').value.trim();
+    if(!code){ merr.textContent = '请输入会员码'; return; }
+    const r = await fetch('/api/redeem', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code, uid:UID})});
+    const d = await r.json();
+    if(!r.ok){ merr.textContent = d.error || '激活失败'; return; }
+    MEMBER_CODE = code; localStorage.setItem('member_code', code);
+    renderMember(); refreshQuota();
+    merr.style.color = 'var(--acc2)'; merr.textContent = '已激活！现在可无限体检。';
+  };
+
+  // ---- 微信 / 支付宝 ----
+  async function doPay(channel){
+    const perr = document.getElementById('perr'); perr.textContent = '';
+    const st = await fetch('/api/pay/status').then(x=>x.json());
+    if(!st[channel]){
+      perr.textContent = (channel==='wechat'?'微信':'支付宝') + '商户号待配置，暂走会员码；商户号就绪后将自动开通扫码支付。';
+      return;
+    }
+    const r = await fetch('/api/pay/create', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({channel})});
+    const d = await r.json();
+    perr.textContent = d.message || (d.pay_url && d.pay_url!=='#configured' ? '请扫码支付：'+d.pay_url : '已创建支付单');
+  }
+  document.getElementById('payWechat').onclick = () => doPay('wechat');
+  document.getElementById('payAlipay').onclick = () => doPay('alipay');
+
+  document.getElementById('toMember').onclick = () =>
+    document.getElementById('member').scrollIntoView({behavior:'smooth'});
+</script>
+</body>
+</html>
