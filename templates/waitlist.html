@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>内测招募 · 做英国市场的出海卖家 AI 运营工具</title>
+<title>内测招募 · AI 上架合规官（做英国/欧洲市场的出海卖家）</title>
 <style>
   :root{--bg:#0f1115;--panel:#171a21;--line:#262b36;--txt:#e8ecf2;--mut:#8b93a3;--acc:#3da9fc;--acc2:#2ee6a6}
   *{box-sizing:border-box}
@@ -25,12 +25,12 @@
 </head>
 <body>
 <div class="box">
-  <h1>做英国市场的出海卖家，AI 运营工具内测招募</h1>
-  <p class="lead">专为运动户外 / 冲浪 / 潜水品类的出海卖家打造，自动搞定英国市场的 Listing 与客服。</p>
+  <h1>AI 上架合规官 · 内测招募</h1>
+  <p class="lead">专为做英国/欧洲市场的中国出海卖家打造。把现成 Listing 粘进来，几秒查出 GPSR、绝对化宣称、英式用语等合规风险。</p>
   <ul>
-    <li>几秒生成符合英国市场的 Listing、卖点、产品描述</li>
-    <li>自动起草礼貌合规的客服回复（支持多语言）</li>
-    <li>内置 UK/EU 合规：材质真实、不夸大宣称</li>
+    <li>🛡️ <b>合规体检</b>：粘贴现成 Listing，输出 GPSR / CE-PPE / 绝对化宣称 / 英式用语风险报告</li>
+    <li>🛒 <b>生成即合规</b>：直接产出符合 UK/EU 规则的英文 Listing（标题/卖点/描述）</li>
+    <li>💬 客服稿、📊 行业研究等配套工具一并内测</li>
   </ul>
   <input id="email" type="email" placeholder="你的邮箱" />
   <button id="join">加入内测</button>
@@ -38,6 +38,12 @@
   <footer>内测名额有限，上线后优先通知你</footer>
 </div>
 <script>
+  function getUid(){
+    let u = localStorage.getItem('uid');
+    if(!u){ u = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+''+Math.random()); localStorage.setItem('uid',u); }
+    return u;
+  }
+  const UID = getUid();
   const btn = document.getElementById('join');
   const msg = document.getElementById('msg');
   btn.onclick = async () => {
@@ -47,7 +53,7 @@
     try {
       const r = await fetch('/api/waitlist', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({email, source:'waitlist_page'})
+        body: JSON.stringify({email, source:'waitlist_page', uid:UID})
       });
       const d = await r.json();
       if (!r.ok) { msg.className='msg err'; msg.textContent = d.error || '提交失败'; }
