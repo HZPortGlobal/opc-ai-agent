@@ -8,6 +8,7 @@ OPC AI Agent — 线上 SaaS（Flask）。
 """
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 from agent_core import run, SCENARIOS, FX  # noqa: E402
@@ -15,6 +16,12 @@ from flask import Flask, request, jsonify, render_template
 import store  # noqa: E402
 
 store.init()
+
+FREE_DAILY_LIMIT = int(os.environ.get("FREE_DAILY_LIMIT", "3"))
+MEMBER_PRICE_CNY = int(os.environ.get("MEMBER_PRICE_CNY", "199"))
+# 微信/支付宝商户号（配置后即自动开通 native 支付；未配置走会员码兜底）
+WECHAT_CFG = bool(os.environ.get("WECHAT_MCH_ID") and os.environ.get("WECHAT_API_KEY"))
+ALIPAY_CFG = bool(os.environ.get("ALIPAY_APP_ID") and os.environ.get("ALIPAY_APP_KEY"))
 
 app = Flask(__name__)
 
@@ -37,6 +44,107 @@ def waitlist_page():
     return render_template("waitlist.html")
 
 
+@app.route("/landing")
+def landing():
+    return render_template("landing.html")
+
+
+def _client_ip():
+    return request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
+
+
+def _gen_err(e, scenario, market, uid):
+    """生成异常统一转友好响应：鉴权失败→503 预热中；其余→500。"""
+    store.log_usage(scenario, market, False, uid)
+    msg = str(e)
+    if "401" in msg or "Authentication" in msg or "auth" in msg.lower():
+        return (
+            jsonify(
+                {
+                    "error": "AI 模型密钥无效或已失效，服务预热中，暂不能生成。请稍后再试或联系管理员。",
+                    "model_down": True,
+                }
+            ),
+            503,
+        )
+    return jsonify({"error": f"生成失败：{e}"}), 500
+
+
+@app.route("/api/quota", methods=["POST"])
+def quota():
+    ip = _client_ip()
+    day = time.strftime("%Y-%m-%d")
+    return jsonify(
+        {"free_used": store.get_free_count(ip, day), "free_limit": FREE_DAILY_LIMIT}
+    )
+
+
+@app.route("/api/check", methods=["POST"])
+def check():
+    """免费合规体检（匿名 IP 每日额度 / 会员码无限），超额引导付费。"""
+    data = request.get_json(force=True, silent=True) or {}
+    brief = (data.get("brief") or "").strip()
+    market = data.get("market", "uk")
+    member_code = (data.get("member_code") or "").strip()
+    if not brief:
+        return jsonify({"error": "请粘贴需体检的 Listing 内容"}), 400
+
+    ip = _client_ip()
+    day = time.strftime("%Y-%m-%d")
+
+    # 会员码：跳过免费额度，无限体检
+    if member_code and store.is_member(member_code):
+        try:
+            out, cost = run("A_audit", brief, market)
+            store.log_usage("A_audit", market, True, member_code)
+        except SystemExit as e:
+            store.log_usage("A_audit", market, False, member_code)
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            return _gen_err(e, "A_audit", market, member_code)
+        return jsonify(
+            {
+                "output": out,
+                "cost_cny": round(cost * FX, 5),
+                "member": True,
+                "free_used": 0,
+                "free_limit": FREE_DAILY_LIMIT,
+            }
+        )
+
+    # 免费额度路径
+    used = store.get_free_count(ip, day)
+    if used >= FREE_DAILY_LIMIT:
+        return (
+            jsonify(
+                {
+                    "paywall": True,
+                    "free_used": used,
+                    "free_limit": FREE_DAILY_LIMIT,
+                    "error": f"今日免费体检次数已用完（{FREE_DAILY_LIMIT} 次/天），开通会员可继续使用。",
+                }
+            ),
+            402,
+        )
+    try:
+        out, cost = run("A_audit", brief, market)
+        store.log_usage("A_audit", market, True, "")
+        store.inc_free_count(ip, day)
+    except SystemExit as e:
+        store.log_usage("A_audit", market, False, "")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return _gen_err(e, "A_audit", market, "")
+    return jsonify(
+        {
+            "output": out,
+            "cost_cny": round(cost * FX, 5),
+            "free_used": used + 1,
+            "free_limit": FREE_DAILY_LIMIT,
+        }
+    )
+
+
 @app.route("/api/generate", methods=["POST"])
 def generate():
     data = request.get_json(force=True, silent=True) or {}
@@ -52,9 +160,8 @@ def generate():
     except SystemExit as e:
         store.log_usage(scenario, market, False, uid)
         return jsonify({"error": str(e)}), 400
-    except Exception as e:  # 兜底：密钥缺失 / 网络 / 模型错误都回 500
-        store.log_usage(scenario, market, False, uid)
-        return jsonify({"error": f"生成失败：{e}"}), 500
+    except Exception as e:  # 兜底：密钥缺失 / 网络 / 模型错误
+        return _gen_err(e, scenario, market, uid)
     return jsonify(
         {
             "output": out,
@@ -79,6 +186,66 @@ def feedback():
         return jsonify({"error": "rating 必须是 up/down"}), 400
     store.add_feedback(scenario, market, rating, comment, wtp)
     return jsonify({"ok": True})
+
+
+@app.route("/api/redeem", methods=["POST"])
+def redeem():
+    """核销会员码 → 解锁无限体检。"""
+    d = request.get_json(force=True, silent=True) or {}
+    code = (d.get("code") or "").strip()
+    if not code:
+        return jsonify({"error": "请输入会员码"}), 400
+    m = store.redeem_code(code, d.get("uid", ""))
+    if not m:
+        return jsonify({"error": "会员码无效或已使用"}), 400
+    return jsonify({"ok": True, "plan": m["plan"], "credits": m["credits"]})
+
+
+@app.route("/api/pay/status")
+def pay_status():
+    """前端据此决定展示扫码支付还是体验码兜底。"""
+    return jsonify(
+        {
+            "wechat": WECHAT_CFG,
+            "alipay": ALIPAY_CFG,
+            "price_cny": MEMBER_PRICE_CNY,
+        }
+    )
+
+
+@app.route("/api/pay/create", methods=["POST"])
+def pay_create():
+    """创建支付单。商户号未配置时返回 manual_pending（走会员码兜底）。"""
+    d = request.get_json(force=True, silent=True) or {}
+    channel = (d.get("channel") or "wechat").lower()
+    if channel not in ("wechat", "alipay"):
+        return jsonify({"error": "channel 仅支持 wechat/alipay"}), 400
+    configured = WECHAT_CFG if channel == "wechat" else ALIPAY_CFG
+    if not configured:
+        store.log_payment(channel, MEMBER_PRICE_CNY, "manual_pending")
+        return (
+            jsonify(
+                {
+                    "status": "manual_pending",
+                    "channel": channel,
+                    "message": "商户号待配置，暂走人工/体验码；商户号就绪后将自动开通扫码支付并回调发货。",
+                }
+            ),
+            200,
+        )
+    # 已配置：此处应调用微信/支付宝下单 API 并返回 pay_url（MVP 先记录）
+    store.log_payment(channel, MEMBER_PRICE_CNY, "created")
+    return (
+        jsonify(
+            {
+                "status": "created",
+                "channel": channel,
+                "pay_url": "#configured",
+                "message": "已创建支付单（待接入回调发货）。",
+            }
+        ),
+        200,
+    )
 
 
 @app.route("/api/waitlist", methods=["POST"])
@@ -111,7 +278,7 @@ table{{width:100%;border-collapse:collapse;font-size:14px}} td{{padding:8px;bord
 .mut{{color:#8b93a3;font-size:12px}}
 </style></head><body>
 <h1>数据看板（MVP · 本地实例存储）</h1>
-<div class="card">waitlist 邮箱数：<b>{s['waitlist']}</b> ｜ 反馈条数：<b>{s['feedback']}</b> ｜ 独立用户：<b>{s['distinct_users']}</b> ｜ 近7日活跃：<b>{s['users_7d']}</b></div>
+<div class="card">waitlist 邮箱数：<b>{s['waitlist']}</b> ｜ 反馈条数：<b>{s['feedback']}</b> ｜ 会员数：<b>{s['members']}</b> ｜ 独立用户：<b>{s['distinct_users']}</b> ｜ 近7日活跃：<b>{s['users_7d']}</b></div>
 <div class="card">生成总次数：<b>{s['gen_total']}</b> ｜ 成功率：<b>{s['success_rate']}%</b></div>
 <div class="card"><h3>各场景使用量</h3><table>{sc_rows}</table></div>
 <div class="card"><h3>反馈正负</h3><table>{rating_rows}</table></div>
