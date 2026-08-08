@@ -3,6 +3,8 @@
 OPC AI Agent — 线上 SaaS（Flask）。
 启动：python app.py  →  打开 http://localhost:8000
 部署：见 README「部署」一节（Render 免费层）。
+
+定位：做英国/欧洲市场的中国出海卖家「AI 上架合规官」。
 """
 import os
 import sys
@@ -16,12 +18,12 @@ store.init()
 
 app = Flask(__name__)
 
-# 给前端用的友好标签（A 是主推方向，B/C 作为可选模块保留）
+# 给前端用的友好标签（A_audit 为主推，生成/客服/研究为附属）
 LABELS = {
-    "A_listing": "🛒 Listing 生成（标题 / 卖点 / 描述 / 社媒文案）",
+    "A_audit": "🛡️ 上架合规体检（粘贴现成 Listing，查 GPSR/宣称/用语风险）【主推】",
+    "A_listing": "🛒 Listing 生成（标题/卖点/描述/社媒，生成即合规）",
     "A_cs": "💬 客服回复草稿（多语言，含风险提示）",
-    "B_code": "🔍 代码审查（分级问题 + 安全/性能陷阱）",
-    "C_research": "📊 行业研究简报（市场 / 竞品 / 风险）",
+    "C_research": "📊 行业研究简报（市场/竞品/风险）",
 }
 
 
@@ -38,16 +40,20 @@ def waitlist_page():
 @app.route("/api/generate", methods=["POST"])
 def generate():
     data = request.get_json(force=True, silent=True) or {}
-    scenario = data.get("scenario", "A_listing")
+    scenario = data.get("scenario", "A_audit")
     brief = (data.get("brief") or "").strip()
     market = data.get("market", "uk")
+    uid = (data.get("uid") or "").strip()
     if not brief:
         return jsonify({"error": "brief 不能为空"}), 400
     try:
         out, cost = run(scenario, brief, market)
+        store.log_usage(scenario, market, True, uid)
     except SystemExit as e:
+        store.log_usage(scenario, market, False, uid)
         return jsonify({"error": str(e)}), 400
     except Exception as e:  # 兜底：密钥缺失 / 网络 / 模型错误都回 500
+        store.log_usage(scenario, market, False, uid)
         return jsonify({"error": f"生成失败：{e}"}), 500
     return jsonify(
         {
@@ -81,7 +87,7 @@ def waitlist():
     email = (d.get("email") or "").strip()
     if "@" not in email or "." not in email.split("@")[-1]:
         return jsonify({"error": "邮箱格式不对"}), 400
-    added = store.add_wait(email, d.get("source", ""))
+    added = store.add_wait(email, d.get("source", ""), d.get("uid", ""))
     return jsonify({"ok": True, "added": added})
 
 
@@ -105,7 +111,8 @@ table{{width:100%;border-collapse:collapse;font-size:14px}} td{{padding:8px;bord
 .mut{{color:#8b93a3;font-size:12px}}
 </style></head><body>
 <h1>数据看板（MVP · 本地实例存储）</h1>
-<div class="card">waitlist 邮箱数：<b>{s['waitlist']}</b> ｜ 反馈条数：<b>{s['feedback']}</b></div>
+<div class="card">waitlist 邮箱数：<b>{s['waitlist']}</b> ｜ 反馈条数：<b>{s['feedback']}</b> ｜ 独立用户：<b>{s['distinct_users']}</b> ｜ 近7日活跃：<b>{s['users_7d']}</b></div>
+<div class="card">生成总次数：<b>{s['gen_total']}</b> ｜ 成功率：<b>{s['success_rate']}%</b></div>
 <div class="card"><h3>各场景使用量</h3><table>{sc_rows}</table></div>
 <div class="card"><h3>反馈正负</h3><table>{rating_rows}</table></div>
 <div class="card"><h3>愿付 £/月 分布</h3><table>{wtp_rows}</table></div>
