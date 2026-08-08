@@ -36,6 +36,12 @@ LABELS = {
 
 @app.route("/")
 def index():
+    # 根路径直接展示新版合规体检落地页（含会员区/支付）；旧工具页保留在 /tool
+    return render_template("landing.html")
+
+
+@app.route("/tool")
+def tool():
     return render_template("index.html", scenarios=LABELS)
 
 
