@@ -7,6 +7,7 @@ OPC AI Agent — 线上 SaaS（Flask）。
 定位：做英国/欧洲市场的中国出海卖家「AI 上架合规官」。
 """
 import os
+import secrets
 import sys
 import time
 
@@ -14,14 +15,23 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src
 from agent_core import run, SCENARIOS, FX  # noqa: E402
 from flask import Flask, request, jsonify, render_template
 import store  # noqa: E402
+import pay as paymod  # noqa: E402
 
 store.init()
 
 FREE_DAILY_LIMIT = int(os.environ.get("FREE_DAILY_LIMIT", "3"))
 MEMBER_PRICE_CNY = int(os.environ.get("MEMBER_PRICE_CNY", "199"))
-# 微信/支付宝商户号（配置后即自动开通 native 支付；未配置走会员码兜底）
-WECHAT_CFG = bool(os.environ.get("WECHAT_MCH_ID") and os.environ.get("WECHAT_API_KEY"))
-ALIPAY_CFG = bool(os.environ.get("ALIPAY_APP_ID") and os.environ.get("ALIPAY_APP_KEY"))
+# 微信/支付宝原生支付（商户配置齐备后自动开通扫码支付；未配置走会员码兜底）
+WECHAT_CFG = bool(
+    os.environ.get("WECHAT_MCH_ID")
+    and os.environ.get("WECHAT_PRIVATE_KEY")
+    and os.environ.get("WECHAT_APIV3_KEY")
+)
+ALIPAY_CFG = bool(
+    os.environ.get("ALIPAY_APP_ID")
+    and os.environ.get("ALIPAY_APP_PRIVATE_KEY")
+    and os.environ.get("ALIPAY_PUBLIC_KEY")
+)
 
 app = Flask(__name__)
 
@@ -221,11 +231,13 @@ def pay_status():
 
 @app.route("/api/pay/create", methods=["POST"])
 def pay_create():
-    """创建支付单。商户号未配置时返回 manual_pending（走会员码兜底）。"""
+    """创建支付单。商户号已配置 → 微信 Native / 支付宝当面付下单返回二维码；否则 manual_pending。"""
     d = request.get_json(force=True, silent=True) or {}
     channel = (d.get("channel") or "wechat").lower()
     if channel not in ("wechat", "alipay"):
         return jsonify({"error": "channel 仅支持 wechat/alipay"}), 400
+
+    # 未配置商户 → 会员码兜底
     configured = WECHAT_CFG if channel == "wechat" else ALIPAY_CFG
     if not configured:
         store.log_payment(channel, MEMBER_PRICE_CNY, "manual_pending")
@@ -239,19 +251,62 @@ def pay_create():
             ),
             200,
         )
-    # 已配置：此处应调用微信/支付宝下单 API 并返回 pay_url（MVP 先记录）
-    store.log_payment(channel, MEMBER_PRICE_CNY, "created")
+
+    # 已配置 → 真实下单
+    order_no = f"{'WX' if channel == 'wechat' else 'ALI'}{int(time.time() * 1000)}{secrets.token_hex(2).upper()}"
+    try:
+        if channel == "wechat":
+            pay_url = paymod.wechat_native(order_no, MEMBER_PRICE_CNY)
+            ptype = "native"
+        else:
+            pay_url = paymod.alipay_precreate(order_no, MEMBER_PRICE_CNY)
+            ptype = "precreate"
+    except Exception as e:
+        store.log_payment(channel, MEMBER_PRICE_CNY, "error", meta=f"{order_no}|{str(e)[:200]}")
+        return jsonify({"status": "error", "message": f"下单失败：{e}"}), 502
+
+    store.log_payment(channel, MEMBER_PRICE_CNY, "created", meta=order_no)
     return (
         jsonify(
             {
                 "status": "created",
                 "channel": channel,
-                "pay_url": "#configured",
-                "message": "已创建支付单（待接入回调发货）。",
+                "pay_url": pay_url,
+                "type": ptype,
+                "order_no": order_no,
+                "message": "请扫码支付，支付成功后会员自动开通（无需填码）。",
             }
         ),
         200,
     )
+
+
+@app.route("/api/pay/notify/wechat", methods=["POST"])
+def pay_notify_wechat():
+    """微信支付回调：验签解密 → 成功则自动 mint 会员码发货。"""
+    raw = request.get_data(as_text=True)
+    try:
+        res = paymod.wechat_verify_notify(request.headers, raw)
+    except Exception as e:
+        return jsonify({"code": "FAIL", "message": str(e)}), 400
+    if res.get("trade_state") == "SUCCESS" and res.get("out_trade_no"):
+        paymod.issue_member_code("wechat", res["out_trade_no"], MEMBER_PRICE_CNY)
+        return jsonify({"code": "SUCCESS", "message": "成功"})
+    return jsonify({"code": "FAIL", "message": "trade not success"}), 400
+
+
+@app.route("/api/pay/notify/alipay", methods=["POST"])
+def pay_notify_alipay():
+    """支付宝异步通知：验签 → 成功则自动 mint 会员码发货。"""
+    form = request.form.to_dict()
+    try:
+        paymod.alipay_verify_notify(form)
+    except Exception:
+        return "fail"
+    if form.get("trade_status") in ("TRADE_SUCCESS", "TRADE_FINISHED") and form.get("out_trade_no"):
+        paymod.issue_member_code("alipay", form["out_trade_no"], MEMBER_PRICE_CNY)
+        return "success"
+    return "fail"
 
 
 @app.route("/api/waitlist", methods=["POST"])
