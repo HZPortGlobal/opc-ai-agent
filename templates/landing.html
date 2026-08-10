@@ -112,6 +112,10 @@
         <div class="col"><button id="payAlipay" style="width:100%;background:var(--warn);color:#1a1205">支付宝 ¥199</button></div>
       </div>
       <p class="err" id="perr" style="margin-top:10px"></p>
+      <div id="qrcode_box" style="display:none;text-align:center;margin-top:12px">
+        <img id="qrcode_img" width="200" height="200" alt="支付二维码" style="border-radius:10px;border:1px solid var(--line)" />
+        <p style="color:var(--mut);font-size:13px;margin-top:6px">扫码支付 ¥199 · 支付成功后会员自动开通</p>
+      </div>
     </div>
   </div>
 
@@ -237,6 +241,7 @@
   // ---- 微信 / 支付宝 ----
   async function doPay(channel){
     const perr = document.getElementById('perr'); perr.textContent = '';
+    const qbox = document.getElementById('qrcode_box'); qbox.style.display = 'none';
     const st = await fetch('/api/pay/status').then(x=>x.json());
     if(!st[channel]){
       perr.textContent = (channel==='wechat'?'微信':'支付宝') + '商户号待配置，暂走会员码；商户号就绪后将自动开通扫码支付。';
@@ -245,7 +250,14 @@
     const r = await fetch('/api/pay/create', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({channel})});
     const d = await r.json();
-    perr.textContent = d.message || (d.pay_url && d.pay_url!=='#configured' ? '请扫码支付：'+d.pay_url : '已创建支付单');
+    if(d.status==='created' && d.pay_url){
+      document.getElementById('qrcode_img').src =
+        'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(d.pay_url);
+      qbox.style.display = 'block';
+      perr.textContent = '';
+    } else {
+      perr.textContent = d.message || '支付通道暂不可用，请联系卖家';
+    }
   }
   document.getElementById('payWechat').onclick = () => doPay('wechat');
   document.getElementById('payAlipay').onclick = () => doPay('alipay');
