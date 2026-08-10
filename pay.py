@@ -167,9 +167,16 @@ def wechat_verify_notify(headers, raw_body):
 
 def _alipay_sign(params):
     priv = os.environ.get("ALIPAY_APP_PRIVATE_KEY", "")
+    # 新版开放平台签名规则：只剔除 sign，sign_type 必须参与签名！
     to_sign = "&".join(f"{k}={params[k]}" for k in sorted(params)
-                       if params[k] and k not in ("sign", "sign_type"))
+                       if params[k] and k not in ("sign",))
     return _rsa_sign_sha256(priv, to_sign)
+
+
+def _cn_time():
+    """北京时间（东八区），支付宝 timestamp 要求中国时区。"""
+    import datetime
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def alipay_precreate(order_no, amount_cny, subject="AI 上架合规体检会员"):
@@ -179,6 +186,7 @@ def alipay_precreate(order_no, amount_cny, subject="AI 上架合规体检会员"
     priv = os.environ.get("ALIPAY_APP_PRIVATE_KEY", "")
     if not (app_id and priv and notify):
         raise RuntimeError("支付宝商户配置不完整（APP_ID/PRIVATE_KEY/NOTIFY_URL）")
+    # biz_content 必须用紧凑 JSON（无空格），否则签名不匹配
     biz = {"out_trade_no": order_no, "total_amount": f"{amount_cny:.2f}", "subject": subject}
     params = {
         "app_id": app_id,
@@ -186,10 +194,10 @@ def alipay_precreate(order_no, amount_cny, subject="AI 上架合规体检会员"
         "format": "JSON",
         "charset": "utf-8",
         "sign_type": "RSA2",
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": _cn_time(),
         "version": "1.0",
         "notify_url": notify,
-        "biz_content": json.dumps(biz, ensure_ascii=False),
+        "biz_content": json.dumps(biz, ensure_ascii=False, separators=(",", ":")),
     }
     params["sign"] = _alipay_sign(params)
     # 支付宝硬性要求：charset 必须放在 URL 查询字符串中，其余参数放 POST body
