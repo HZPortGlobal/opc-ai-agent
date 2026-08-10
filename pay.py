@@ -192,7 +192,10 @@ def alipay_precreate(order_no, amount_cny, subject="AI 上架合规体检会员"
         "biz_content": json.dumps(biz, ensure_ascii=False),
     }
     params["sign"] = _alipay_sign(params)
-    r = requests.post("https://openapi.alipay.com/gateway.do", data=params, timeout=15)
+    # 支付宝硬性要求：charset 必须放在 URL 查询字符串中，其余参数放 POST body
+    body_params = {k: v for k, v in params.items() if k != "charset"}
+    gateway = "https://openapi.alipay.com/gateway.do?charset=utf-8"
+    r = requests.post(gateway, data=body_params, timeout=15)
     d = r.json()
     resp = d.get("alipay_trade_precreate_response", {})
     if resp.get("code") != "10000" or not resp.get("qr_code"):
