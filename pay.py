@@ -40,8 +40,21 @@ def _rsa_sign_sha256(pem_or_path, message):
     return base64.b64encode(sig).decode()
 
 
+def _load_pub(pem_or_base64):
+    """支付宝公钥：支持完整 PEM，也支持裸 base64（自动补 PEM 头）。"""
+    s = (pem_or_base64 or "").strip()
+    if not s:
+        raise RuntimeError("缺少公钥配置")
+    if "-----BEGIN PUBLIC KEY-----" in s:
+        return s
+    body = s.replace("\n", "").strip()
+    lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+    return ("-----BEGIN PUBLIC KEY-----\n" + "\n".join(lines) +
+            "\n-----END PUBLIC KEY-----\n")
+
+
 def _rsa_verify_sha256(pub_pem, message, signature_b64):
-    pub = serialization.load_pem_public_key(pub_pem.encode())
+    pub = serialization.load_pem_public_key(_load_pub(pub_pem).encode())
     pub.verify(base64.b64decode(signature_b64), message.encode("utf-8"),
                padding.PKCS1v15(), hashes.SHA256())
 
@@ -154,7 +167,7 @@ def alipay_verify_notify(form):
     sign = form.get("sign", "")
     to_verify = "&".join(f"{k}={form[k]}" for k in sorted(form)
                          if form[k] and k not in ("sign", "sign_type"))
-    _rsa_verify_sha256(_load_key(pub), to_verify, sign)
+    _rsa_verify_sha256(_load_pub(pub), to_verify, sign)
 
 
 # ---------------- 支付成功 → 自动发货 ----------------
