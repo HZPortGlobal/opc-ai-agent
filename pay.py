@@ -23,8 +23,49 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import store
 
 
+def _load_priv(pem_or_base64):
+    """应用私钥：支持完整 PEM、裸 base64（自动补头）、文件路径。
+
+    支付宝密钥工具导出的私钥常见两种头：
+    - PKCS#1: -----BEGIN RSA PRIVATE KEY-----
+    - PKCS#8: -----BEGIN PRIVATE KEY-----
+    裸 base64 时先按 PKCS#1 补，解析失败再按 PKCS#8 补。
+    """
+    s = (pem_or_base64 or "").strip()
+    if not s:
+        raise RuntimeError("缺少私钥/证书配置")
+    if "-----BEGIN" in s:
+        return s
+    # 文件路径特征：.pem 结尾 / 含盘符冒号 / 以 / 或 \ 开头
+    # （注意不能用 "in s" 判断 /，因为 base64 字符集本身含 /）
+    looks_like_path = (
+        s.lower().endswith(".pem")
+        or ":" in s
+        or s.startswith("/")
+        or s.startswith("\\")
+    )
+    if looks_like_path:
+        with open(s, "r", encoding="utf-8") as f:
+            return f.read()
+    body = s.replace("\n", "").strip()
+    lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+    candidates = [
+        ("-----BEGIN RSA PRIVATE KEY-----\n" + "\n".join(lines) +
+         "\n-----END RSA PRIVATE KEY-----\n"),
+        ("-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) +
+         "\n-----END PRIVATE KEY-----\n"),
+    ]
+    for pem in candidates:
+        try:
+            serialization.load_pem_private_key(pem.encode(), password=None)
+            return pem
+        except Exception:
+            continue
+    raise RuntimeError("私钥格式无法解析：请提供完整 PEM（含 -----BEGIN 头）或正确的 base64")
+
+
 def _load_key(pem_or_path):
-    """支持直接传 PEM 字符串或文件路径。"""
+    """兼容旧引用（微信平台证书等）：PEM 字符串或文件路径原样返回。"""
     s = (pem_or_path or "").strip()
     if not s:
         raise RuntimeError("缺少私钥/证书配置")
@@ -34,8 +75,8 @@ def _load_key(pem_or_path):
         return f.read()
 
 
-def _rsa_sign_sha256(pem_or_path, message):
-    key = serialization.load_pem_private_key(_load_key(pem_or_path).encode(), password=None)
+def _rsa_sign_sha256(pem_or_base64, message):
+    key = serialization.load_pem_private_key(_load_priv(pem_or_base64).encode(), password=None)
     sig = key.sign(message.encode("utf-8"), padding.PKCS1v15(), hashes.SHA256())
     return base64.b64encode(sig).decode()
 
