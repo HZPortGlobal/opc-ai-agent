@@ -265,5 +265,43 @@
   document.getElementById('toMember').onclick = () =>
     document.getElementById('member').scrollIntoView({behavior:'smooth'});
 </script>
+
+<!-- ===== 经营信息页脚（支付平台合规巡检查验项）===== -->
+<footer id="siteinfo" style="margin-top:56px;padding:28px 0 40px;border-top:1px solid rgba(255,255,255,.12);font-size:13px;line-height:1.9;opacity:.85">
+  <div style="max-width:900px;margin:0 auto;padding:0 20px">
+
+    <h3 style="font-size:15px;margin:0 0 10px">服务说明与收费标准</h3>
+    <p style="margin:0 0 14px">
+      本站为跨境电商经营者提供在线商品信息合规自查服务：用户自行粘贴商品文案，系统输出可能存在的平台下架风险点与修改建议。
+      <br>• <strong>免费额度</strong>：每日 {{ free_limit or 3 }} 次自查，无需注册。
+      <br>• <strong>会员服务</strong>：{{ price_cny or 199 }} 元 / 月，不限次数自查。开通后以会员码形式交付，即时生效。
+      <br>• 本服务为信息参考工具，输出内容不构成法律意见，最终以各销售平台及主管机构规定为准。
+    </p>
+
+    <h3 style="font-size:15px;margin:18px 0 10px">退款政策</h3>
+    <p style="margin:0 0 14px">
+      会员为虚拟服务，自开通之日起 <strong>7 日内</strong>，若累计使用未超过 3 次，可申请全额退款；
+      超出上述范围的，按剩余未使用月份比例退还。退款请通过下方联系方式提交订单信息，我们在 3 个工作日内处理。
+    </p>
+
+    <h3 style="font-size:15px;margin:18px 0 10px">用户须知</h3>
+    <p style="margin:0 0 14px">
+      用户不得提交违法违规内容；用户提交的文案仅用于本次自查与服务质量改进，不对外披露。
+      继续使用本站即表示同意以上条款。
+    </p>
+
+    <h3 style="font-size:15px;margin:18px 0 10px">经营者信息 / 联系方式</h3>
+    <p style="margin:0">
+      {% if site_entity %}经营主体：{{ site_entity }}<br>{% endif %}
+      {% if site_email %}客服邮箱：<a href="mailto:{{ site_email }}" style="color:var(--acc2)">{{ site_email }}</a><br>{% endif %}
+      {% if site_phone %}客服电话：{{ site_phone }}<br>{% endif %}
+      {% if not (site_entity or site_email or site_phone) %}
+      <span style="color:#f59e0b">（经营主体与联系方式待配置：请在部署环境变量中填写 SITE_ENTITY / SITE_EMAIL / SITE_PHONE）</span><br>
+      {% endif %}
+      服务时间：工作日 9:00–18:00（邮件 24 小时内回复）
+    </p>
+
+  </div>
+</footer>
 </body>
 </html>
