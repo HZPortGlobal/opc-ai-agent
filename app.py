@@ -21,6 +21,21 @@ store.init()
 
 FREE_DAILY_LIMIT = int(os.environ.get("FREE_DAILY_LIMIT", "3"))
 MEMBER_PRICE_CNY = int(os.environ.get("MEMBER_PRICE_CNY", "199"))
+# 支付平台巡检必需的经营主体信息（填在部署环境变量里，不写死在代码中）
+SITE_ENTITY = os.environ.get("SITE_ENTITY", "")
+SITE_EMAIL = os.environ.get("SITE_EMAIL", "")
+SITE_PHONE = os.environ.get("SITE_PHONE", "")
+
+
+def _site_ctx():
+    """页脚经营信息上下文（供支付平台合规巡检查验）。"""
+    return {
+        "site_entity": SITE_ENTITY,
+        "site_email": SITE_EMAIL,
+        "site_phone": SITE_PHONE,
+        "price_cny": MEMBER_PRICE_CNY,
+        "free_limit": FREE_DAILY_LIMIT,
+    }
 # 微信/支付宝原生支付（商户配置齐备后自动开通扫码支付；未配置走会员码兜底）
 WECHAT_CFG = bool(
     os.environ.get("WECHAT_MCH_ID")
@@ -47,7 +62,7 @@ LABELS = {
 @app.route("/")
 def index():
     # 根路径直接展示新版合规体检落地页（含会员区/支付）；旧工具页保留在 /tool
-    return render_template("landing.html")
+    return render_template("landing.html", **_site_ctx())
 
 
 @app.route("/tool")
@@ -62,7 +77,7 @@ def waitlist_page():
 
 @app.route("/landing")
 def landing():
-    return render_template("landing.html")
+    return render_template("landing.html", **_site_ctx())
 
 
 def _client_ip():
